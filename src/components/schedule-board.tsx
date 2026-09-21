@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Lock, Pin } from "lucide-react";
 import { boardHeader, todayIso, weekDates } from "@/shared/dates";
 import { canPic, canRightSeat, occupiedIds } from "@/shared/validate";
-import type { DayAircraftAssignment, DayStatus, Pilot } from "@/shared/types";
+import type { DayAircraftAssignment, DayPlan, DayStatus, Pilot } from "@/shared/types";
 import { cn } from "@/lib/cn";
 import { useOps } from "@/lib/ops-context";
 import { PilotChip } from "./pilot-chip";
@@ -236,7 +236,7 @@ function EditorModal({
     patch: Partial<DayAircraftAssignment>,
   ) => void;
   onDuty: (date: string, pilotId: string | null) => void;
-  onDay: (date: string, patch: { notes?: string; dutyOfficerLocked?: boolean }) => void;
+  onDay: (date: string, patch: Partial<DayPlan>) => void;
 }) {
   const { week, pilots, aircraft, timeOff, addTimeOff, removeTimeOff } = useOps();
   const day = week.days[editor.date];
