@@ -18,6 +18,16 @@ const ibm = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "FairCrew · Pilot scheduler",
   description: "Fair PIC/SIC and duty-officer line assignments for small flight ops.",
+  applicationName: "FairCrew",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
