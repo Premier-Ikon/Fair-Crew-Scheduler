@@ -57,13 +57,14 @@ type OpsContextValue = {
   removeTimeOff: (id: string) => void;
   timeOffOn: (pilotId: string, date: string) => TimeOff | undefined;
   publishWeek: () => void;
-  resetToSeed: () => void;
   generate: (weekCount: number, preserveLocked: boolean) => Promise<GenerateResult | null>;
   applyGenerate: (result: GenerateResult) => void;
-  draftPending: boolean;
-  savingDraft: boolean;
-  saveDraft: () => Promise<void>;
-  discardDraft: () => void;
+  dirty: boolean;
+  shaking: boolean;
+  saving: boolean;
+  saveChanges: () => Promise<void>;
+  discardChanges: () => void;
+  warnUnsaved: () => void;
 };
 
 const OpsContext = createContext<OpsContextValue | null>(null);
@@ -76,8 +77,15 @@ function ensureWeek(
   return weeks[start] ?? emptyWeek(start, aircraft);
 }
 
-function cloneWeeks(weeks: Record<string, WeekPlan>): Record<string, WeekPlan> {
-  return structuredClone(weeks);
+type Snapshot = {
+  pilots: Pilot[];
+  aircraft: Aircraft[];
+  weeks: Record<string, WeekPlan>;
+  timeOff: TimeOff[];
+};
+
+function cloneSnapshot(snapshot: Snapshot): Snapshot {
+  return structuredClone(snapshot);
 }
 
 export function OpsProvider({ children }: { children: React.ReactNode }) {
@@ -90,11 +98,17 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   const [weekStart, setWeekStart] = useState(mondayOf(todayIso()));
   const [notice, setNotice] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [draftPending, setDraftPending] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const saveTimer = useRef<number | null>(null);
-  const skipSave = useRef(true);
-  const lastSavedWeeks = useRef<Record<string, WeekPlan>>(cloneWeeks(seed.weeks));
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shaking, setShaking] = useState(false);
+  const lastSaved = useRef<Snapshot>(
+    cloneSnapshot({
+      pilots: seed.pilots,
+      aircraft: seed.aircraft,
+      weeks: seed.weeks,
+      timeOff: seed.timeOff,
+    }),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -115,35 +129,35 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         setAircraft(hydrated.aircraft);
         setWeeks(hydrated.weeks);
         setTimeOff(hydrated.timeOff);
-        lastSavedWeeks.current = cloneWeeks(hydrated.weeks);
+        lastSaved.current = cloneSnapshot(hydrated);
       } else {
-        lastSavedWeeks.current = cloneWeeks(seed.weeks);
+        const starting = {
+          pilots: seed.pilots,
+          aircraft: seed.aircraft,
+          weeks: seed.weeks,
+          timeOff: seed.timeOff,
+        };
+        lastSaved.current = cloneSnapshot(starting);
+        await saveSnapshot(starting).catch((error) => {
+          console.error("Could not save starting roster", error);
+        });
       }
+      setDirty(false);
       setReady(true);
-      skipSave.current = false;
     })();
     return () => {
       cancelled = true;
     };
   }, [seed]);
 
-  useEffect(() => {
-    if (!ready || skipSave.current) return;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      if (draftPending) {
-        void saveSnapshot({
-          pilots,
-          aircraft,
-          weeks: lastSavedWeeks.current,
-          timeOff,
-        });
-        return;
-      }
-      lastSavedWeeks.current = cloneWeeks(weeks);
-      void saveSnapshot({ pilots, aircraft, weeks, timeOff });
-    }, 400);
-  }, [ready, pilots, aircraft, weeks, timeOff, draftPending]);
+  const markDirty = useCallback(() => {
+    setDirty(true);
+  }, []);
+
+  const warnUnsaved = useCallback(() => {
+    setShaking(true);
+    window.setTimeout(() => setShaking(false), 450);
+  }, []);
 
   useEffect(() => {
     if (!notice) return;
@@ -170,12 +184,13 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
 
   const writeWeek = useCallback(
     (next: WeekPlan) => {
+      markDirty();
       setWeeks((current) => ({
         ...current,
         [next.id]: { ...next, updatedAt: new Date().toISOString() },
       }));
     },
-    [],
+    [markDirty],
   );
 
   const updateDay = useCallback(
@@ -221,6 +236,7 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const upsertPilot = useCallback((pilot: Pilot) => {
+    markDirty();
     setPilots((current) => {
       const index = current.findIndex((item) => item.id === pilot.id);
       if (index === -1) return [...current, pilot];
@@ -228,14 +244,16 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       next[index] = pilot;
       return next;
     });
-  }, []);
+  }, [markDirty]);
 
   const removePilot = useCallback((pilotId: string) => {
+    markDirty();
     setPilots((current) => current.filter((pilot) => pilot.id !== pilotId));
     setTimeOff((current) => current.filter((item) => item.pilotId !== pilotId));
-  }, []);
+  }, [markDirty]);
 
   const setQual = useCallback((pilotId: string, aircraftId: string, role: SeatRole | null) => {
+    markDirty();
     setPilots((current) =>
       current.map((pilot) =>
         pilot.id === pilotId
@@ -243,9 +261,10 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
           : pilot,
       ),
     );
-  }, []);
+  }, [markDirty]);
 
   const upsertAircraft = useCallback((item: Aircraft) => {
+    markDirty();
     setAircraft((current) => {
       const index = current.findIndex((row) => row.id === item.id);
       if (index === -1) return [...current, item];
@@ -253,9 +272,10 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
       next[index] = item;
       return next;
     });
-  }, []);
+  }, [markDirty]);
 
   const addTimeOff = useCallback((item: TimeOff) => {
+    markDirty();
     setTimeOff((current) => {
       const without = current.filter(
         (row) => !(row.pilotId === item.pilotId && row.date === item.date),
@@ -265,8 +285,9 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeTimeOff = useCallback((id: string) => {
+    markDirty();
     setTimeOff((current) => current.filter((item) => item.id !== id));
-  }, []);
+  }, [markDirty]);
 
   const timeOffOn = useCallback(
     (pilotId: string, date: string) =>
@@ -275,25 +296,13 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const publishWeek = useCallback(() => {
-    if (draftPending) {
-      setNotice("Save the recommendation first, then publish.");
-      return;
-    }
     writeWeek({ ...week, status: week.status === "published" ? "draft" : "published" });
-    setNotice(week.status === "published" ? "Reverted to draft." : "Week published.");
-  }, [draftPending, week, writeWeek]);
-
-  const resetToSeed = useCallback(() => {
-    const next = demoSeed(todayIso());
-    setPilots(next.pilots);
-    setAircraft(next.aircraft);
-    setWeeks(next.weeks);
-    setTimeOff(next.timeOff);
-    lastSavedWeeks.current = cloneWeeks(next.weeks);
-    setDraftPending(false);
-    setWeekStart(mondayOf(todayIso()));
-    setNotice("Restored demo roster and empty boards.");
-  }, []);
+    setNotice(
+      week.status === "published"
+        ? "Reverted to draft. Save to keep it."
+        : "Marked published. Save to keep it.",
+    );
+  }, [week, writeWeek]);
 
   const generate = useCallback(
     async (weekCount: number, preserveLocked: boolean) => {
@@ -342,31 +351,36 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
         { ...next, status: "draft" as const },
       ]),
     );
+    markDirty();
     setWeeks((current) => ({ ...current, ...drafted }));
-    setDraftPending(true);
     setNotice(
-      `Previewing recommendation (${result.score.minWork}–${result.score.maxWork} work days). Save it to keep it, or discard to revert.`,
+      `Previewing recommendation (${result.score.minWork}–${result.score.maxWork} work days).`,
     );
-  }, []);
+  }, [markDirty]);
 
-  const saveDraft = useCallback(async () => {
-    setSavingDraft(true);
+  const saveChanges = useCallback(async () => {
+    setSaving(true);
     try {
-      lastSavedWeeks.current = cloneWeeks(weeks);
-      await saveSnapshot({ pilots, aircraft, weeks, timeOff });
-      setDraftPending(false);
-      setNotice("Draft saved. Publish when the line is ready.");
+      const snapshot = { pilots, aircraft, weeks, timeOff };
+      await saveSnapshot(snapshot);
+      lastSaved.current = cloneSnapshot(snapshot);
+      setDirty(false);
+      setNotice("Saved.");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not save draft.");
+      setNotice(error instanceof Error ? error.message : "Could not save.");
     } finally {
-      setSavingDraft(false);
+      setSaving(false);
     }
   }, [pilots, aircraft, weeks, timeOff]);
 
-  const discardDraft = useCallback(() => {
-    setWeeks(cloneWeeks(lastSavedWeeks.current));
-    setDraftPending(false);
-    setNotice("Recommendation discarded. Board restored to the last saved lineup.");
+  const discardChanges = useCallback(() => {
+    const saved = cloneSnapshot(lastSaved.current);
+    setPilots(saved.pilots);
+    setAircraft(saved.aircraft);
+    setWeeks(saved.weeks);
+    setTimeOff(saved.timeOff);
+    setDirty(false);
+    setNotice("Changes discarded.");
   }, []);
 
   const value: OpsContextValue = {
@@ -395,13 +409,14 @@ export function OpsProvider({ children }: { children: React.ReactNode }) {
     removeTimeOff,
     timeOffOn,
     publishWeek,
-    resetToSeed,
     generate,
     applyGenerate,
-    draftPending,
-    savingDraft,
-    saveDraft,
-    discardDraft,
+    dirty,
+    shaking,
+    saving,
+    saveChanges,
+    discardChanges,
+    warnUnsaved,
   };
 
   return <OpsContext.Provider value={value}>{children}</OpsContext.Provider>;

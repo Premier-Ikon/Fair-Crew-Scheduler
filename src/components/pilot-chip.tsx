@@ -7,10 +7,12 @@ export function PilotChip({
   pilot,
   role,
   compact = false,
+  mine = false,
 }: {
   pilot?: Pilot | null;
   role?: string;
   compact?: boolean;
+  mine?: boolean;
 }) {
   if (!pilot) {
     return <span className="text-xs text-muted">—</span>;
@@ -21,8 +23,13 @@ export function PilotChip({
         className="mt-px h-2 w-2 shrink-0 rounded-full"
         style={{ backgroundColor: pilot.color }}
       />
-      <span className="font-semibold text-ink">{pilot.name}</span>
+      <span className={cn("font-semibold", mine ? "text-[#c45c26]" : "text-ink")}>{pilot.name}</span>
       {role ? <span className="text-[10px] font-bold uppercase text-muted">{role}</span> : null}
+      {mine ? (
+        <span className="rounded-full bg-[#c45c26] px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white">
+          You
+        </span>
+      ) : null}
     </span>
   );
 }

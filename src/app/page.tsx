@@ -5,12 +5,14 @@ import { FairnessPanel } from "@/components/fairness-panel";
 import { RecommendPanel } from "@/components/recommend-panel";
 import { ScheduleBoard } from "@/components/schedule-board";
 import { WeekToolbar } from "@/components/week-toolbar";
+import { useAuth } from "@/lib/auth-context";
 import { useOps } from "@/lib/ops-context";
 import { cn } from "@/lib/cn";
 
 export default function LinePage() {
   const [recommendOpen, setRecommendOpen] = useState(false);
   const { warnings, week } = useOps();
+  const { isAdmin } = useAuth();
   const filled = Object.values(week.days).some(
     (day) => day.dutyOfficerId || Object.values(day.aircraft).some((item) => item.picId),
   );
@@ -21,8 +23,9 @@ export default function LinePage() {
         <WeekToolbar onRecommend={() => setRecommendOpen(true)} />
         {!filled ? (
           <div className="no-print mb-3 rounded-md border border-amber-300 bg-deployed px-3 py-2 text-sm text-amber-950">
-            This week is an empty board — same starting point as a blank spreadsheet. Click
-            Recommend to get a legal, even lineup, then edit any cell.
+            {isAdmin
+              ? "This week is an empty board — same starting point as a blank spreadsheet. Click Recommend to get a legal, even lineup, then edit any cell."
+              : "This week has not been filled in yet. Your assignments will show here once the line is posted."}
           </div>
         ) : null}
         <ScheduleBoard />

@@ -9,6 +9,7 @@ export interface Pilot {
   color: string;
   quals: Record<string, SeatRole | null>;
   active: boolean;
+  email?: string;
 }
 
 export interface Aircraft {

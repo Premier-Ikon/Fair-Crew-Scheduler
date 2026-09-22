@@ -64,7 +64,7 @@ export function LoginScreen() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className={authInputClass}
-            placeholder="name@email.com"
+            placeholder="johnsmith@gmail.com"
           />
         </AuthField>
         {mode === "signin" ? (

@@ -18,9 +18,9 @@ export function AuthFrame({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-svh bg-paper lg:grid-cols-[1.15fr_1fr]">
-      <aside className="auth-hero relative flex flex-col justify-between overflow-hidden bg-navy-950 px-6 py-5 text-white sm:px-8 lg:min-h-svh lg:px-14 lg:py-12">
-        <BrandMark size="lg" />
+    <div className="flex min-h-svh flex-col bg-paper lg:grid lg:grid-cols-[1.15fr_1fr]">
+      <aside className="auth-hero relative flex shrink-0 flex-col justify-between overflow-hidden bg-navy-950 px-5 py-4 text-white pt-[calc(1rem+env(safe-area-inset-top))] sm:px-8 sm:py-5 lg:min-h-svh lg:px-14 lg:py-12">
+        <BrandMark size="sm" />
         <div className="relative z-10 hidden max-w-xl lg:block">
           <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#e08a4f]">
             Weekly assignment board
@@ -53,7 +53,7 @@ export function AuthFrame({
         </p>
       </aside>
 
-      <main className="flex items-center justify-center px-6 py-12 lg:min-h-svh lg:px-14">
+      <main className="flex flex-1 items-start justify-center px-5 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] lg:min-h-svh lg:items-center lg:px-14 lg:py-12">
         <div className="w-full max-w-[400px]">
           <h1 className="text-2xl font-black tracking-tight text-navy-900">{title}</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted">{subtitle}</p>
@@ -83,7 +83,7 @@ export function AuthField({
 }
 
 export const authInputClass =
-  "mt-1.5 w-full rounded-md border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none ring-[#c45c26]/30 transition focus:border-navy-700 focus:ring-4";
+  "mt-1.5 min-h-11 w-full rounded-md border border-line bg-white px-3 py-2.5 text-base text-ink outline-none ring-[#c45c26]/30 transition focus:border-navy-700 focus:ring-4";
 
 export const authPrimaryClass =
-  "w-full rounded-md bg-[#c45c26] px-3 py-2.5 text-sm font-black text-white transition hover:bg-[#b35020] disabled:cursor-not-allowed disabled:opacity-55";
+  "min-h-11 w-full rounded-md bg-[#c45c26] px-3 py-2.5 text-sm font-black text-white transition hover:bg-[#b35020] disabled:cursor-not-allowed disabled:opacity-55";

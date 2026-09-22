@@ -45,11 +45,17 @@ body {
   background: var(--paper);
   color: var(--ink);
   min-height: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-sans);
   margin: 0;
+}
+
+button,
+a {
+  touch-action: manipulation;
 }
 
 button,
@@ -59,18 +65,32 @@ textarea {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
 ::selection {
   background: #c7d7ee;
 }
 
 .board-scroll {
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .board-table {
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 720px;
   width: 100%;
+}
+
+@media (min-width: 768px) {
+  .board-table {
+    min-width: 980px;
+  }
 }
 
 .board-table th,
@@ -89,10 +109,19 @@ textarea {
   text-align: center;
 }
 
+.board-table thead th:first-child,
+.board-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  box-shadow: 6px 0 10px rgba(18, 39, 66, 0.12);
+}
+
 .board-table thead th:first-child {
   text-align: left;
   padding-left: 10px;
-  width: 140px;
+  width: 118px;
+  z-index: 4;
 }
 
 .auth-hero::before {
@@ -117,6 +146,58 @@ textarea {
   border-radius: 999px;
   background: radial-gradient(circle, rgba(196, 92, 38, 0.22), transparent 68%);
   pointer-events: none;
+}
+
+@keyframes unsaved-shake {
+  0%,
+  100% {
+    transform: translateX(-50%);
+  }
+  20% {
+    transform: translateX(calc(-50% - 10px));
+  }
+  40% {
+    transform: translateX(calc(-50% + 10px));
+  }
+  60% {
+    transform: translateX(calc(-50% - 6px));
+  }
+  80% {
+    transform: translateX(calc(-50% + 6px));
+  }
+}
+
+@keyframes unsaved-shake-full {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-10px);
+  }
+  40% {
+    transform: translateX(10px);
+  }
+  60% {
+    transform: translateX(-6px);
+  }
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+.unsaved-bar {
+  animation: none;
+}
+
+.unsaved-bar.is-shaking {
+  animation: unsaved-shake-full 0.42s ease;
+}
+
+@media (min-width: 640px) {
+  .unsaved-bar.is-centered.is-shaking {
+    animation: unsaved-shake 0.42s ease;
+  }
 }
 
 @media print {

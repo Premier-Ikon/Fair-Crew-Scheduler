@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow, IBM_Plex_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -15,10 +15,22 @@ const ibm = IBM_Plex_Mono({
   weight: ["400", "500", "600", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#122742",
+};
+
 export const metadata: Metadata = {
   title: "FairCrew · Pilot scheduler",
   description: "Fair PIC/SIC and duty-officer line assignments for small flight ops.",
   applicationName: "FairCrew",
+  appleWebApp: {
+    capable: true,
+    title: "FairCrew",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "48x48" },

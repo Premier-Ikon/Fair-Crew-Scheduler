@@ -13,49 +13,49 @@ export const SEED_PILOTS: Pilot[] = [
     id: "paul",
     name: "Paul",
     color: "#1d4ed8",
-    quals: { bou: "PIC", casa: null, otter: "PIC", n238: "PIC" },
+    quals: { bou: "PIC", casa: null, otter: "PIC" },
     active: true,
   },
   {
     id: "jerb",
     name: "Jerb",
     color: "#0f766e",
-    quals: { bou: "PIC", casa: "PIC", otter: "PIC", n238: "PIC" },
+    quals: { bou: "PIC", casa: "PIC", otter: "PIC" },
     active: true,
   },
   {
     id: "jordan",
     name: "Jordan",
     color: "#7c3aed",
-    quals: { bou: "SIC", casa: "PIC", otter: "PIC", n238: "PIC" },
+    quals: { bou: "SIC", casa: "PIC", otter: "PIC" },
     active: true,
   },
   {
     id: "dustin",
     name: "Dustin",
     color: "#c2410c",
-    quals: { bou: null, casa: "PIC", otter: "SIC", n238: "SIC" },
+    quals: { bou: null, casa: "PIC", otter: "SIC" },
     active: true,
   },
   {
     id: "amanda",
     name: "Amanda",
     color: "#be185d",
-    quals: { bou: "SIC", casa: "SIC", otter: null, n238: null },
+    quals: { bou: "SIC", casa: "SIC", otter: null },
     active: true,
   },
   {
     id: "chris",
     name: "Chris",
     color: "#3f6212",
-    quals: { bou: "SIC", casa: "SIC", otter: null, n238: null },
+    quals: { bou: "SIC", casa: "SIC", otter: null },
     active: true,
   },
   {
     id: "matt",
     name: "Matt",
     color: "#0369a1",
-    quals: { bou: "SIC", casa: null, otter: "SIC", n238: "SIC" },
+    quals: { bou: "SIC", casa: null, otter: "SIC" },
     active: true,
   },
 ];
@@ -66,13 +66,6 @@ export const SEED_AIRCRAFT: Aircraft[] = [
     name: "Bou",
     tailNumber: "N368SS",
     color: "#1e3a5f",
-    active: true,
-  },
-  {
-    id: "n238",
-    name: "238",
-    tailNumber: "N238PT",
-    color: "#7c2d12",
     active: true,
   },
   {
@@ -95,12 +88,10 @@ export function emptyAssignment(status: DayAircraftAssignment["status"]): DayAir
   return { status, picId: null, sicId: null, note: "", locked: false };
 }
 
-function defaultAssignmentFor(aircraftId: string, date: string): DayAircraftAssignment {
+const RETIRED_AIRCRAFT = new Set(["n238"]);
+
+function defaultAssignmentFor(_aircraftId: string, date: string): DayAircraftAssignment {
   if (isWeekend(date)) return emptyAssignment("none");
-  // N238PT is usually off-station on the real board (Pinal / MX), not a daily local line.
-  if (aircraftId === "n238") {
-    return { ...emptyAssignment("deployed"), note: "Pinal, AZ" };
-  }
   return emptyAssignment("flying");
 }
 
@@ -193,13 +184,17 @@ export function hydrateRoster(loaded: {
   const known = new Map(loaded.aircraft.map((item) => [item.id, item]));
   const aircraft = [
     ...SEED_AIRCRAFT.map((item) => known.get(item.id) ?? item),
-    ...loaded.aircraft.filter((item) => !SEED_AIRCRAFT.some((seed) => seed.id === item.id)),
+    ...loaded.aircraft.filter(
+      (item) =>
+        !SEED_AIRCRAFT.some((seed) => seed.id === item.id) && !RETIRED_AIRCRAFT.has(item.id),
+    ),
   ];
 
   const seedById = new Map(SEED_PILOTS.map((pilot) => [pilot.id, pilot]));
   const pilots = loaded.pilots.map((pilot) => {
     const seeded = seedById.get(pilot.id);
     const quals = { ...pilot.quals };
+    for (const id of RETIRED_AIRCRAFT) delete quals[id];
     for (const ac of aircraft) {
       if (!(ac.id in quals)) {
         quals[ac.id] = seeded?.quals[ac.id] ?? null;

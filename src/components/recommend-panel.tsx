@@ -26,9 +26,9 @@ export function RecommendPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30">
-      <button className="h-full flex-1" onClick={onClose} aria-label="Close" />
-      <aside className="h-full w-full max-w-md overflow-y-auto bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-40 flex flex-col justify-end bg-black/30 md:flex-row md:items-stretch">
+      <button className="min-h-10 flex-1" onClick={onClose} aria-label="Close" />
+      <aside className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl md:h-full md:max-h-none md:rounded-none">
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-black text-navy-900">Recommend lineup</h2>
@@ -69,7 +69,7 @@ export function RecommendPanel({
           type="button"
           onClick={() => void run()}
           disabled={generating}
-          className="w-full rounded-md bg-[#c45c26] px-3 py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          className="min-h-11 w-full rounded-md bg-[#c45c26] px-3 py-2.5 text-sm font-bold text-white disabled:opacity-60"
         >
           {generating ? "Building…" : "Build recommendation"}
         </button>
@@ -131,7 +131,7 @@ export function RecommendPanel({
               Preview as draft
             </button>
             <p className="text-center text-[11px] text-muted">
-              Does not save. Use Save draft or Discard on the board.
+              Does not save. Use Save or Discard on the bar.
             </p>
           </div>
         ) : null}

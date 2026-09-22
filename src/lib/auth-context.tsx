@@ -31,6 +31,7 @@ type AuthContextValue = {
   user: User | null;
   email: string | null;
   isAdmin: boolean;
+  onboardingDone: boolean | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   sendReset: (email: string) => Promise<void>;
@@ -39,6 +40,7 @@ type AuthContextValue = {
   listAccess: () => Promise<AccessPerson[]>;
   sendAccess: (email: string) => Promise<void>;
   revokeAccess: (email: string) => Promise<void>;
+  completeOnboarding: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -47,6 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
     const auth = getAuthClient();
@@ -59,8 +62,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (next) {
         const token = await next.getIdTokenResult(true);
         setIsAdmin(token.claims.admin === true);
+        try {
+          const profile = await accessRequest<{ onboardingDone?: boolean }>(
+            "manageAccess?action=me",
+            await next.getIdToken(),
+          );
+          setOnboardingDone(Boolean(profile.onboardingDone));
+        } catch {
+          setOnboardingDone(false);
+        }
       } else {
         setIsAdmin(false);
+        setOnboardingDone(null);
       }
       setReady(true);
     });
@@ -132,12 +145,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [authJson],
   );
 
+  const completeOnboarding = useCallback(async () => {
+    await authJson<{ ok: boolean }>("manageAccess", {
+      method: "POST",
+      body: JSON.stringify({ action: "onboarding" }),
+    });
+    setOnboardingDone(true);
+  }, [authJson]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ready,
       user,
       email: user?.email ?? null,
       isAdmin,
+      onboardingDone,
       signIn,
       signOut,
       sendReset,
@@ -146,11 +168,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       listAccess,
       sendAccess,
       revokeAccess,
+      completeOnboarding,
     }),
     [
       ready,
       user,
       isAdmin,
+      onboardingDone,
       signIn,
       signOut,
       sendReset,
@@ -159,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       listAccess,
       sendAccess,
       revokeAccess,
+      completeOnboarding,
     ],
   );
 

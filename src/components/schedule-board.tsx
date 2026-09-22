@@ -6,7 +6,9 @@ import { boardHeader, todayIso, weekDates } from "@/shared/dates";
 import { canPic, canRightSeat, occupiedIds } from "@/shared/validate";
 import type { DayAircraftAssignment, DayPlan, DayStatus, Pilot } from "@/shared/types";
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/lib/auth-context";
 import { useOps } from "@/lib/ops-context";
+import { pilotForEmail } from "@/lib/pilot-access";
 import { PilotChip } from "./pilot-chip";
 
 type Editor =
@@ -25,15 +27,23 @@ const STATUS_OPTIONS: { value: DayStatus; label: string }[] = [
 
 export function ScheduleBoard() {
   const { week, aircraft, pilots, timeOff, updateAssignment, updateDay, setDutyOfficer } = useOps();
+  const { email, isAdmin } = useAuth();
+  const viewerId = pilotForEmail(pilots, email)?.id ?? null;
   const dates = weekDates(week.startDate);
   const [editor, setEditor] = useState<Editor>(null);
   const today = todayIso();
+  const open = (next: Editor) => {
+    if (isAdmin) setEditor(next);
+  };
 
   return (
     <div className="overflow-hidden rounded-lg border border-[#9aafc7] bg-white shadow-sm">
       <div className="bg-navy-800 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-[0.12em] text-red-200">
         All events and schedules are subject to change due to mission demand
       </div>
+      <p className="no-print border-b border-[#9aafc7] bg-paper px-3 py-1.5 text-[11px] font-semibold text-muted md:hidden">
+        Swipe sideways for the rest of the week. The assignment column stays put.
+      </p>
       <div className="board-scroll">
         <table className="board-table">
           <thead>
@@ -59,19 +69,21 @@ export function ScheduleBoard() {
                   </th>
                   {dates.map((date) => {
                     const assignment = week.days[date]?.aircraft[item.id];
+                    const mine =
+                      Boolean(viewerId) &&
+                      (assignment?.picId === viewerId || assignment?.sicId === viewerId);
                     return (
-                      <td key={date} className={cellTone(assignment)}>
+                      <td key={date} className={cn(cellTone(assignment), mine && "ring-2 ring-inset ring-[#c45c26]")}>
                         <button
                           type="button"
                           className="block min-h-[72px] w-full p-1.5 text-left"
-                          onClick={() =>
-                            setEditor({ kind: "aircraft", date, aircraftId: item.id })
-                          }
+                          onClick={() => open({ kind: "aircraft", date, aircraftId: item.id })}
                         >
                           <AircraftCell
                             assignment={assignment}
                             pilots={pilots}
                             locked={assignment?.locked}
+                            viewerId={viewerId}
                           />
                         </button>
                       </td>
@@ -86,15 +98,16 @@ export function ScheduleBoard() {
               {dates.map((date) => {
                 const day = week.days[date];
                 const officer = pilots.find((pilot) => pilot.id === day?.dutyOfficerId);
+                const mine = Boolean(viewerId) && day?.dutyOfficerId === viewerId;
                 return (
-                  <td key={date} className="bg-duty">
+                  <td key={date} className={cn("bg-duty", mine && "ring-2 ring-inset ring-[#c45c26]")}>
                     <button
                       type="button"
                       className="block min-h-[52px] w-full p-1.5 text-left"
-                      onClick={() => setEditor({ kind: "duty", date })}
+                      onClick={() => open({ kind: "duty", date })}
                     >
                       <div className="flex items-center justify-between">
-                        <PilotChip pilot={officer} />
+                        <PilotChip pilot={officer} mine={mine} />
                         {day?.dutyOfficerLocked ? <Lock size={11} /> : null}
                       </div>
                     </button>
@@ -111,12 +124,13 @@ export function ScheduleBoard() {
                 const names = (day?.offSiteCrewIds ?? [])
                   .map((id) => pilots.find((pilot) => pilot.id === id)?.name ?? id)
                   .join(" / ");
+                const mine = Boolean(viewerId) && (day?.offSiteCrewIds ?? []).includes(viewerId);
                 return (
-                  <td key={date} className="bg-[#f8e4e6]">
+                  <td key={date} className={cn("bg-[#f8e4e6]", mine && "ring-2 ring-inset ring-[#c45c26]")}>
                     <button
                       type="button"
                       className="block min-h-[48px] w-full p-1.5 text-left text-[12px] font-semibold"
-                      onClick={() => setEditor({ kind: "offsite", date })}
+                      onClick={() => open({ kind: "offsite", date })}
                     >
                       {names || "—"}
                     </button>
@@ -136,7 +150,7 @@ export function ScheduleBoard() {
                     <button
                       type="button"
                       className="block min-h-[56px] w-full p-1.5 text-left text-[12px] leading-snug"
-                      onClick={() => setEditor({ kind: "notes", date })}
+                      onClick={() => open({ kind: "notes", date })}
                     >
                       {pto.length > 0 ? (
                         <div className="font-semibold text-rose-900">
@@ -183,10 +197,12 @@ function AircraftCell({
   assignment,
   pilots,
   locked,
+  viewerId,
 }: {
   assignment?: DayAircraftAssignment;
   pilots: Pilot[];
   locked?: boolean;
+  viewerId?: string | null;
 }) {
   if (!assignment || assignment.status === "none") {
     return <StatusLabel text="No flights" />;
@@ -202,10 +218,10 @@ function AircraftCell({
   return (
     <div className="space-y-1">
       <div className="flex items-start justify-between gap-1">
-        <PilotChip pilot={pic} role="PIC" compact />
+        <PilotChip pilot={pic} role="PIC" compact mine={Boolean(viewerId) && pic?.id === viewerId} />
         {locked ? <Pin size={11} className="mt-0.5 text-muted" /> : null}
       </div>
-      <PilotChip pilot={sic} role="SIC" compact />
+      <PilotChip pilot={sic} role="SIC" compact mine={Boolean(viewerId) && sic?.id === viewerId} />
       {assignment.note ? (
         <div className="text-[11px] text-muted">{assignment.note}</div>
       ) : null}
@@ -244,11 +260,11 @@ function EditorModal({
 
   return (
     <div
-      className="fixed inset-0 z-30 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl"
+        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-lg"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
