@@ -124,7 +124,7 @@ export function ScheduleBoard() {
                 const names = (day?.offSiteCrewIds ?? [])
                   .map((id) => pilots.find((pilot) => pilot.id === id)?.name ?? id)
                   .join(" / ");
-                const mine = Boolean(viewerId) && (day?.offSiteCrewIds ?? []).includes(viewerId);
+                const mine = Boolean(viewerId && (day?.offSiteCrewIds ?? []).includes(viewerId));
                 return (
                   <td key={date} className={cn("bg-[#f8e4e6]", mine && "ring-2 ring-inset ring-[#c45c26]")}>
                     <button
